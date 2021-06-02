@@ -1,3 +1,9 @@
+mod block;
+mod blockchain;
+
+use block::{generate_new_block, Block, Reward, Transaction};
+use blockchain::Blockchain;
+
 use libp2p::{
     core::upgrade,
     floodsub::{Floodsub, FloodsubEvent, Topic},
@@ -11,30 +17,15 @@ use libp2p::{
 };
 use log::error;
 use once_cell::sync::Lazy;
-use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::str;
-use std::thread;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::{io::AsyncBufReadExt, sync::mpsc};
 
 static KEYS: Lazy<identity::Keypair> = Lazy::new(|| identity::Keypair::generate_ed25519());
 static PEER_ID: Lazy<PeerId> = Lazy::new(|| PeerId::from(KEYS.public()));
 static TX_TOPIC: Lazy<Topic> = Lazy::new(|| Topic::new("transactions"));
 static BLOCKCHAIN_TOPIC: Lazy<Topic> = Lazy::new(|| Topic::new("blockchain"));
-
-#[derive(Debug, Serialize, Deserialize)]
-struct Transaction {
-    from: String,
-    to: String,
-    amount: usize,
-    timestamp: u64,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct Block {
-    id: String,
-}
 
 enum EventType {
     Response(Block),
@@ -47,6 +38,8 @@ struct BlockchainNetworkBehavior {
     mdns: TokioMdns,
     #[behaviour(ignore)]
     response_sender: mpsc::UnboundedSender<Block>,
+    #[behaviour(ignore)]
+    chain: Blockchain,
 }
 
 impl NetworkBehaviourEventProcess<FloodsubEvent> for BlockchainNetworkBehavior {
@@ -59,19 +52,14 @@ impl NetworkBehaviourEventProcess<FloodsubEvent> for BlockchainNetworkBehavior {
                         tx.from, tx.to, tx.amount
                     );
 
-                    println!("Mining this shit");
-
-                    thread::sleep(Duration::from_millis(5000));
-
-                    let block = Block {
-                        id: "123".to_string(),
-                    };
+                    let block = generate_new_block(tx);
+                    self.chain.add_block(block.clone());
 
                     if let Err(e) = self.response_sender.send(block) {
                         error!("error sending response over channel, {}", e);
                     }
                 } else if let Ok(block) = serde_json::from_slice::<Block>(&msg.data) {
-                    println!("INFO: Recieved Block. {}", block.id);
+                    self.chain.add_block(block)
                 }
             }
             _ => (),
@@ -100,8 +88,6 @@ impl NetworkBehaviourEventProcess<MdnsEvent> for BlockchainNetworkBehavior {
 
 #[tokio::main]
 async fn main() {
-    println!("Peer Id: {}", PEER_ID.clone());
-
     // Some queue to handle async message back and forth
     let (response_sender, mut response_rcv) = mpsc::unbounded_channel();
 
@@ -125,7 +111,26 @@ async fn main() {
         floodsub: Floodsub::new(PEER_ID.clone()),
         mdns: TokioMdns::new().expect("can create mdns"),
         response_sender,
+        chain: Blockchain::new(),
     };
+
+    let reward = Reward {
+        address: "".to_owned(),
+        amount: 10,
+    };
+
+    let mut block = Block::new(
+        0,
+        "".to_string(),
+        "timestamp".to_owned(),
+        Transaction::new("".to_owned(), "".to_owned(), "".to_owned(), 0),
+        "".to_owned(),
+        0,
+        reward,
+    );
+    block.hash = block::calculate_hash(&block);
+    // Create the genesis block
+    behaviour.chain.add_block(block);
 
     behaviour.floodsub.subscribe(BLOCKCHAIN_TOPIC.clone());
     behaviour.floodsub.subscribe(TX_TOPIC.clone());
@@ -174,7 +179,6 @@ async fn main() {
                 }
                 EventType::Input(line) => match line.as_str() {
                     "list peers" => handle_list_peers(&mut swarm).await,
-                    "list blocks" => handle_list_blocks().await,
                     cmd if cmd.starts_with("tx ") => handle_new_transaction(cmd, &mut swarm).await,
                     cmd => error!("unknown command - {}", cmd),
                 },
@@ -191,13 +195,6 @@ async fn handle_list_peers(swarm: &mut Swarm<BlockchainNetworkBehavior>) {
         unique_peers.insert(peer);
     }
     unique_peers.iter().for_each(|p| println!("{}", p));
-}
-
-async fn handle_list_blocks() {
-    println!("Listing Blocks......");
-
-    println!("Block 1");
-    println!("Block 2");
 }
 
 async fn handle_new_transaction(cmd: &str, swarm: &mut Swarm<BlockchainNetworkBehavior>) {
@@ -222,7 +219,7 @@ async fn handle_new_transaction(cmd: &str, swarm: &mut Swarm<BlockchainNetworkBe
             from: KEYS.public().into_peer_id().to_string(),
             to: to_address.to_string(),
             amount: amount.parse::<usize>().unwrap(),
-            timestamp: since_the_epoch.as_secs(),
+            timestamp: since_the_epoch.as_secs().to_string(),
         };
 
         swarm.floodsub.publish(

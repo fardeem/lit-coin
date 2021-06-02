@@ -1,11 +1,11 @@
+use super::block::{calculate_hash, Block};
 use std::collections::HashMap;
-use super::block::{Block, calculate_hash};
 
 #[derive(Debug)]
 pub struct Blockchain {
     // lock: Arc<Mutex<usize>>,
-    map: HashMap<String, Vec<Block>>,
-    block_table: HashMap<String, Block> 
+    pub map: HashMap<String, Vec<Block>>,
+    pub block_table: HashMap<String, Block>,
 }
 
 impl Blockchain {
@@ -24,19 +24,19 @@ impl Blockchain {
     pub fn add_block(&mut self, block: Block) {
         if !self.validate_block(&block) {
             println!("INVALID BLOCK");
-            return 
+            return;
         }
         self.remove_block(&block);
-        self.block_table.insert(block.hash.to_string(), block.clone());
+        self.block_table
+            .insert(block.hash.to_string(), block.clone());
         self.map.insert(block.hash.to_string(), vec![]);
         self.try_insert(block.clone());
-        println!("Added a new block, {:?}", self.map);
     }
 
     pub fn try_insert(&mut self, block: Block) {
-        println!("prev {:?}", block.previous_hash);
         if !block.previous_hash.is_empty() {
-            self.map.entry(block.previous_hash.to_string())
+            self.map
+                .entry(block.previous_hash.to_string())
                 .or_insert_with(Vec::new)
                 .push(block);
         }
@@ -50,7 +50,7 @@ impl Blockchain {
             if let Some(previous) = self.get_previous(curr) {
                 prev = previous;
             } else {
-                return 
+                return;
             }
         }
 
@@ -60,7 +60,11 @@ impl Blockchain {
     pub fn validate_block(&self, block: &Block) -> bool {
         match self.get_previous(&block) {
             None => calculate_hash(&block) == block.hash,
-            Some(previous_block) => previous_block.index + 1 == block.index && previous_block.hash == block.previous_hash && calculate_hash(&block) == block.hash
-        }   
+            Some(previous_block) => {
+                previous_block.index + 1 == block.index
+                    && previous_block.hash == block.previous_hash
+                    && calculate_hash(&block) == block.hash
+            }
+        }
     }
 }
