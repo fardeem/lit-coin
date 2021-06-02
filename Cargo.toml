@@ -6,4 +6,5 @@ edition = "2018"
 
 [dependencies]
 sha256 = "1.0.2"
+chrono = "0.4"
 
