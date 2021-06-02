@@ -56,9 +56,13 @@ impl NetworkBehaviourEventProcess<FloodsubEvent> for BlockchainNetworkBehavior {
                     self.chain.add_block(block.clone());
 
                     if let Err(e) = self.response_sender.send(block) {
-                        error!("error sending response over channel, {}", e);
+                        println!("error sending response over channel, {}", e);
                     }
                 } else if let Ok(block) = serde_json::from_slice::<Block>(&msg.data) {
+                    println!(
+                        "Recevied block with hash: {} and previous hash: {}",
+                        block.hash, block.previous_hash
+                    );
                     self.chain.add_block(block)
                 }
             }
