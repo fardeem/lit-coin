@@ -2,6 +2,9 @@ use sha256::digest;
 use std::time::{SystemTime};
 use chrono::offset::Utc;
 use chrono::DateTime;
+use secp256k1::{Secp256k1, Message, All};
+use secp256k1::rand::rngs::OsRng;
+use secp256k1::bitcoin_hashes::sha256 as sec_sha256;
 
 const DIFFICULTY: &str = "0000";
 const REWARD_AMOUNT: usize = 90;
@@ -36,24 +39,30 @@ pub struct Transaction {
     to: String,
     timestamp: String,
     amount: usize,
-    signature: String,
-    pk: String,
+    signature: secp256k1::Signature,
+    pk: secp256k1::PublicKey,
 }
 
 impl Transaction {
-    pub fn new(from: String, to: String, timestamp: String, amount: usize, signature: String, pk: String) -> Self {
+    pub fn new(from: String, to: String, timestamp: String, amount: usize, sk: secp256k1::SecretKey, pk: secp256k1::PublicKey, secp: Secp256k1<All>) -> Self {
+        let message = Message::from_hashed_data::<sec_sha256::Hash>(format!("{}{}{}{}",from, to, timestamp, amount).as_bytes());
         Self {
             from, 
             to, 
             timestamp,
             amount, 
-            signature, 
+            signature: secp.sign(&message, &sk), 
             pk
         }
     }
 
+    pub fn verify_signature(&self, secp: Secp256k1<All>) -> bool {
+        let message = Message::from_hashed_data::<sec_sha256::Hash>(format!("{}{}{}{}",self.from, self.to, self.timestamp, self.amount).as_bytes());
+        secp.verify(&message, &self.signature, &self.pk).is_ok()
+    }
+
     pub fn serialize(&self) -> String {
-        format!("{}{}{}{}{}{}",self.from, self.to, self.timestamp, self.amount, self.signature, self.pk)
+        format!("{}{}{}{}{}{}",self.from, self.to, self.timestamp, self.amount, self.signature.to_string(), self.pk.to_string())
     }
 }
 
@@ -69,7 +78,12 @@ fn get_latest_block() -> Block {
         address: "".to_owned(), 
         amount: REWARD_AMOUNT
     };
-    Block::new(0, "".to_owned(), "timestamp".to_owned(), Transaction::new("".to_owned(), "".to_owned(), "".to_owned(), 0, "".to_owned(), "".to_owned()), "".to_owned(), 0, reward)
+    //REMOVE LATER
+    let secp = Secp256k1::new();
+    let mut rng = OsRng::new().expect("OsRng");
+    let (secret_key, public_key) = secp.generate_keypair(&mut rng);
+
+    Block::new(0, "".to_owned(), "timestamp".to_owned(), Transaction::new("".to_owned(), "".to_owned(), "".to_owned(), 0, secret_key, public_key, secp), "".to_owned(), 0, reward)
 }
 
 pub fn generate_new_block(transaction: Transaction) -> Block {

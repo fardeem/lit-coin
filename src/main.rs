@@ -8,11 +8,18 @@
 // use sha256::digest;
 // use std::time::{SystemTime, UNIX_EPOCH};
 
+use secp256k1::rand::rngs::OsRng;
+use secp256k1::{Secp256k1};
+
 mod block;
 mod blockchain;
 
 fn main() {
-  block::generate_new_block(block::Transaction::new("".to_owned(), "".to_owned(), "".to_owned(), 0, "".to_owned(), "".to_owned()));
+  let secp = Secp256k1::new();
+  let mut rng = OsRng::new().expect("OsRng");
+  let (secret_key, public_key) = secp.generate_keypair(&mut rng);
+
+  block::generate_new_block(block::Transaction::new("".to_owned(), "".to_owned(), "".to_owned(), 0, secret_key, public_key, secp));
 }
 
 // #[get("/blocks")]
