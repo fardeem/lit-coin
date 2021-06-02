@@ -9,7 +9,7 @@ use libp2p::{
     tcp::TokioTcpConfig,
     NetworkBehaviour, PeerId, Transport,
 };
-use log::{error, info};
+use log::error;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -33,25 +33,12 @@ struct Transaction {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-enum ListMode {
-    ALL,
-    One(String),
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct ListRequest {
-    mode: ListMode,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct ListResponse {
-    mode: ListMode,
-    data: Transaction,
-    receiver: String,
+struct Block {
+    id: String,
 }
 
 enum EventType {
-    Response(ListResponse),
+    Response(Block),
     Input(String),
 }
 
@@ -60,14 +47,31 @@ struct BlockchainNetworkBehavior {
     floodsub: Floodsub,
     mdns: TokioMdns,
     #[behaviour(ignore)]
-    _response_sender: mpsc::UnboundedSender<ListResponse>,
+    response_sender: mpsc::UnboundedSender<Block>,
 }
 
 impl NetworkBehaviourEventProcess<FloodsubEvent> for BlockchainNetworkBehavior {
     fn inject_event(&mut self, event: FloodsubEvent) {
         match event {
             FloodsubEvent::Message(msg) => {
-                print!("{}", str::from_utf8(&msg.data).unwrap());
+                if let Ok(tx) = serde_json::from_slice::<Transaction>(&msg.data) {
+                    println!(
+                        "INFO: Received transaction. \nContents..... \nFrom: {}, \nTo: {}, \nAmount: {}",
+                        tx.from, tx.to, tx.amount
+                    );
+
+                    println!("Mining this shit");
+
+                    let block = Block {
+                        id: "123".to_string(),
+                    };
+
+                    if let Err(e) = self.response_sender.send(block) {
+                        error!("error sending response over channel, {}", e);
+                    }
+                } else if let Ok(block) = serde_json::from_slice::<Block>(&msg.data) {
+                    println!("INFO: Recieved Block. {}", block.id);
+                }
             }
             _ => (),
         }
@@ -96,7 +100,7 @@ impl NetworkBehaviourEventProcess<MdnsEvent> for BlockchainNetworkBehavior {
 #[tokio::main]
 async fn main() {
     pretty_env_logger::init();
-    info!("Peer Id: {}", PEER_ID.clone());
+    println!("Peer Id: {}", PEER_ID.clone());
 
     // Some queue to handle async message back and forth
     let (response_sender, mut response_rcv) = mpsc::unbounded_channel();
@@ -120,7 +124,7 @@ async fn main() {
     let mut behaviour = BlockchainNetworkBehavior {
         floodsub: Floodsub::new(PEER_ID.clone()),
         mdns: TokioMdns::new().expect("can create mdns"),
-        _response_sender: response_sender,
+        response_sender,
     };
 
     behaviour.floodsub.subscribe(BLOCKCHAIN_TOPIC.clone());
@@ -153,7 +157,7 @@ async fn main() {
             tokio::select! {
                 line = stdin.next_line() => Some(EventType::Input(line.expect("can get line").expect("can read line from stdin"))),
                 event = swarm.next() => {
-                    info!("Unhandled Swarm Event: {:?}", event);
+                    println!("Unhandled Swarm Event: {:?}", event);
                     None
                 },
                 response = response_rcv.recv() => Some(EventType::Response(response.expect("response exists"))),
@@ -171,8 +175,7 @@ async fn main() {
                 EventType::Input(line) => match line.as_str() {
                     "list peers" => handle_list_peers(&mut swarm).await,
                     "list blocks" => handle_list_blocks().await,
-                    "print balance" => handle_print_balance().await,
-                    cmd if cmd.starts_with("tx ") => handle_new_transaction(cmd).await,
+                    cmd if cmd.starts_with("tx ") => handle_new_transaction(cmd, &mut swarm).await,
                     cmd => error!("unknown command - {}", cmd),
                 },
             }
@@ -181,56 +184,50 @@ async fn main() {
 }
 
 async fn handle_list_peers(swarm: &mut Swarm<BlockchainNetworkBehavior>) {
-    info!("Discovered Peers:");
+    println!("Discovered Peers:");
     let nodes = swarm.mdns.discovered_nodes();
     let mut unique_peers = HashSet::new();
     for peer in nodes {
         unique_peers.insert(peer);
     }
-    unique_peers.iter().for_each(|p| info!("{}", p));
-}
-
-async fn handle_print_balance() {
-    info!("Your balance is: ")
+    unique_peers.iter().for_each(|p| println!("{}", p));
 }
 
 async fn handle_list_blocks() {
-    info!("Listing Blocks......");
+    println!("Listing Blocks......");
 
-    info!("Block 1");
-    info!("Block 2");
+    println!("Block 1");
+    println!("Block 2");
 }
 
-async fn create_new_transaction(to: &str, amount: &str) -> Result<()> {
-    let since_the_epoch = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .expect("Time went backwards");
-
-    let _tx = Transaction {
-        from: KEYS.public().into_peer_id().to_string(),
-        to: to.to_string(),
-        amount: amount.parse::<usize>().unwrap(),
-        timestamp: since_the_epoch.as_secs(),
-    };
-
-    Ok(())
-}
-
-async fn handle_new_transaction(cmd: &str) {
+async fn handle_new_transaction(cmd: &str, swarm: &mut Swarm<BlockchainNetworkBehavior>) {
     if let Some(rest) = cmd.strip_prefix("tx") {
         // Transactions are formatted at to|amount
 
         let elements: Vec<&str> = rest.split("|").collect();
 
         if elements.len() < 2 {
-            info!("too few arguments - Format: to|amount");
-        } else {
-            let to_address = elements.get(0).expect("to address is there");
-            let amount = elements.get(1).expect("amount is there");
-
-            if let Err(e) = create_new_transaction(to_address, amount).await {
-                error!("error creating recipe: {}", e);
-            };
+            println!("too few arguments - Format: to|amount");
+            return;
         }
+
+        let to_address = elements.get(0).expect("to address is there");
+        let amount = elements.get(1).expect("amount is there");
+
+        let since_the_epoch = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("Time went backwards");
+
+        let tx = Transaction {
+            from: KEYS.public().into_peer_id().to_string(),
+            to: to_address.to_string(),
+            amount: amount.parse::<usize>().unwrap(),
+            timestamp: since_the_epoch.as_secs(),
+        };
+
+        swarm.floodsub.publish(
+            TX_TOPIC.clone(),
+            serde_json::to_string(&tx).unwrap().as_bytes(),
+        )
     }
 }
