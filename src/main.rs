@@ -14,7 +14,8 @@ use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::str;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::thread;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::{io::AsyncBufReadExt, sync::mpsc};
 
 static KEYS: Lazy<identity::Keypair> = Lazy::new(|| identity::Keypair::generate_ed25519());
@@ -59,6 +60,8 @@ impl NetworkBehaviourEventProcess<FloodsubEvent> for BlockchainNetworkBehavior {
                     );
 
                     println!("Mining this shit");
+
+                    thread::sleep(Duration::from_millis(5000));
 
                     let block = Block {
                         id: "123".to_string(),
