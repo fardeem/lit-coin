@@ -9,6 +9,7 @@ use secp256k1::bitcoin_hashes::sha256 as sec_sha256;
 const DIFFICULTY: &str = "0000";
 const REWARD_AMOUNT: usize = 90;
 
+#[derive(Clone, Debug)]
 pub struct Block {
     pub index: usize,
     pub previous_hash: String,
@@ -34,6 +35,7 @@ impl Block {
 }
 
 //   Placeholder
+#[derive(Clone, Debug)]
 pub struct Transaction {
     from: String,
     to: String,
@@ -66,10 +68,11 @@ impl Transaction {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct Reward {
     // id, address? it'll be the same address used for the p2p conenction
-    address: String,
-    amount: usize,
+    pub address: String,
+    pub amount: usize,
 }
 
 fn get_latest_block() -> Block {
