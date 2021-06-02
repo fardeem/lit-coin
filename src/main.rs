@@ -9,6 +9,7 @@
 // use std::time::{SystemTime, UNIX_EPOCH};
 
 mod block;
+mod blockchain;
 
 fn main() {
   block::generate_new_block(block::Transaction::new("".to_owned(), "".to_owned(), "".to_owned(), 0, "".to_owned(), "".to_owned()));

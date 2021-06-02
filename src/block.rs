@@ -7,11 +7,11 @@ const DIFFICULTY: &str = "0000";
 const REWARD_AMOUNT: usize = 90;
 
 pub struct Block {
-    index: usize,
-    previous_hash: String,
+    pub index: usize,
+    pub previous_hash: String,
     timestamp: String,
     tx: Transaction,
-    hash: String, 
+    pub hash: String, 
     nonce: usize,
     reward: Reward
 }
@@ -102,7 +102,7 @@ pub fn generate_new_block(transaction: Transaction) -> Block {
     }
 }
 
-fn calculate_hash(block: &Block) -> String {
+pub fn calculate_hash(block: &Block) -> String {
     let hash = format!("{}{}{}{}{}", block.index, block.nonce, block.previous_hash, block.timestamp, block.tx.serialize());
     digest(hash)
 }
