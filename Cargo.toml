@@ -6,5 +6,4 @@ edition = "2018"
 
 [dependencies]
 sha256 = "1.0.2"
-rocket = "0.4.10"
 
