@@ -1,2 +1,0 @@
-cargo:rustc-env=TYPENUM_BUILD_CONSTS=/Users/yibopan/Dev/CS496/lit-coin/target/rls/debug/build/typenum-d9d565340a86154a/out/consts.rs
-cargo:rustc-env=TYPENUM_BUILD_OP=/Users/yibopan/Dev/CS496/lit-coin/target/rls/debug/build/typenum-d9d565340a86154a/out/op.rs
