@@ -17,8 +17,6 @@ use std::str;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::{io::AsyncBufReadExt, sync::mpsc};
 
-type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync + 'static>>;
-
 static KEYS: Lazy<identity::Keypair> = Lazy::new(|| identity::Keypair::generate_ed25519());
 static PEER_ID: Lazy<PeerId> = Lazy::new(|| PeerId::from(KEYS.public()));
 static TX_TOPIC: Lazy<Topic> = Lazy::new(|| Topic::new("transactions"));
@@ -99,7 +97,6 @@ impl NetworkBehaviourEventProcess<MdnsEvent> for BlockchainNetworkBehavior {
 
 #[tokio::main]
 async fn main() {
-    pretty_env_logger::init();
     println!("Peer Id: {}", PEER_ID.clone());
 
     // Some queue to handle async message back and forth
