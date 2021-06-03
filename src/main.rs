@@ -52,7 +52,7 @@ impl NetworkBehaviourEventProcess<FloodsubEvent> for BlockchainNetworkBehavior {
                         tx.from, tx.to, tx.amount
                     );
 
-                    let block = generate_new_block(tx);
+                    let block = generate_new_block(tx, self.chain.get_latest_block().unwrap());
                     self.chain.add_block(block.clone());
 
                     if let Err(e) = self.response_sender.send(block) {
@@ -126,7 +126,7 @@ async fn main() {
     let mut block = Block::new(
         0,
         "".to_string(),
-        "timestamp".to_owned(),
+        "1".to_owned(),
         Transaction::new("".to_owned(), "".to_owned(), "".to_owned(), 0),
         "".to_owned(),
         0,

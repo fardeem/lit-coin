@@ -26,11 +26,17 @@ impl Blockchain {
             println!("INVALID BLOCK");
             return;
         }
+
+        if self.map.contains_key(&block.hash) {
+            return 
+        }
+
         self.remove_block(&block);
         self.block_table
             .insert(block.hash.to_string(), block.clone());
         self.map.insert(block.hash.to_string(), vec![]);
         self.try_insert(block.clone());
+        println!("A new block added {}, previous block is {}", block.hash, block.previous_hash)
     }
 
     pub fn try_insert(&mut self, block: Block) {
@@ -66,5 +72,20 @@ impl Blockchain {
                     && calculate_hash(&block) == block.hash
             }
         }
+    }
+
+    pub fn get_latest_block(&self) -> Option<&Block> {
+        let mut res: Option<&Block> = None;
+        let mut latest = 0;
+        for (key, val) in self.map.iter() {
+            let block = self.block_table.get(key).unwrap();
+            println!("debug {:?}", block.timestamp);
+            let temp = block.timestamp.parse::<usize>().unwrap();
+            if val.is_empty() && temp > latest{
+                latest = temp;
+                res = Some(block);
+            }
+        }
+        res
     }
 }

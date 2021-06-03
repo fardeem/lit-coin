@@ -1,8 +1,5 @@
-use chrono::offset::Utc;
-use chrono::DateTime;
 use serde::{Deserialize, Serialize};
 use sha256::digest;
-use std::time::SystemTime;
 
 const DIFFICULTY: &str = "0000";
 const REWARD_AMOUNT: usize = 90;
@@ -11,7 +8,7 @@ const REWARD_AMOUNT: usize = 90;
 pub struct Block {
     pub index: usize,
     pub previous_hash: String,
-    timestamp: String,
+    pub timestamp: String,
     tx: Transaction,
     pub hash: String,
     nonce: usize,
@@ -71,37 +68,16 @@ pub struct Reward {
     pub amount: usize,
 }
 
-fn get_latest_block() -> Block {
-    //   PlaceHolder
-    let reward = Reward {
-        address: "".to_owned(),
-        amount: REWARD_AMOUNT,
-    };
-
-    Block::new(
-        0,
-        "".to_owned(),
-        "timestamp".to_owned(),
-        Transaction::new("".to_owned(), "".to_owned(), "".to_owned(), 0),
-        "".to_owned(),
-        0,
-        reward,
-    )
-}
-
-pub fn generate_new_block(transaction: Transaction) -> Block {
-    let previous_block = get_latest_block();
+pub fn generate_new_block(transaction: Transaction, previous_block: &Block) -> Block {
     let index = previous_block.index + 1;
-    let time = SystemTime::now();
-    let timestamp: DateTime<Utc> = time.into();
     let reward = Reward {
         address: "".to_owned(),
         amount: REWARD_AMOUNT,
     };
     let mut block = Block::new(
         index,
-        previous_block.hash,
-        timestamp.to_string(),
+        previous_block.hash.to_string(),
+        transaction.timestamp.clone(),
         transaction,
         "".to_owned(),
         0,
