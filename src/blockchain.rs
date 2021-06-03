@@ -1,4 +1,4 @@
-use super::block::{calculate_hash, Block};
+use super::block::{calculate_hash, Block, Reward, Transaction};
 use std::collections::HashMap;
 
 #[derive(Debug)]
@@ -87,5 +87,43 @@ impl Blockchain {
             }
         }
         res
+    }
+    
+    pub fn print_blockchain(&self) {
+        for (k, _v) in self.map.iter() {
+            println!("Block: {}, previous block: {}", k, self.block_table[k].previous_hash)
+        }
+    }
+
+    pub fn get_balances(&self) -> HashMap<String, usize> { // TODO
+        // get latest block todo 
+        let reward = Reward {
+            address: "".to_owned(),
+            amount: 0,
+        };
+        let mut block = &Block::new(
+            0,
+            "".to_string(),
+            "timestamp".to_owned(),
+            Transaction::new("".to_owned(), "".to_owned(), "".to_owned(), 0),
+            "".to_owned(),
+            0,
+            reward,
+        );
+        let mut balances: HashMap<String, usize> = HashMap::new();
+        while block.previous_hash != "" {
+            //subtract from
+            let from_balance = balances.entry(block.tx.from.to_string()).or_insert(0);
+            *from_balance -= block.tx.amount;
+            //add to
+            let to_balance = balances.entry(block.tx.to.to_string()).or_insert(0);
+            *to_balance += block.tx.amount;
+            //add reward
+            let reward_balance = balances.entry(block.reward.address.to_string()).or_insert(0);
+            *reward_balance += block.reward.amount;
+            //go to next block
+            block = &self.block_table[&block.previous_hash];
+        }
+        balances
     }
 }
