@@ -52,7 +52,7 @@ impl NetworkBehaviourEventProcess<FloodsubEvent> for BlockchainNetworkBehavior {
                         tx.from, tx.to, tx.amount
                     );
 
-                    let block = generate_new_block(tx, self.chain.get_latest_block().unwrap());
+                    let block = generate_new_block(tx, self.chain.get_latest_block().unwrap(), KEYS.public().into_peer_id().to_string());
                     self.chain.add_block(block.clone());
 
                     if let Err(e) = self.response_sender.send(block) {
@@ -202,7 +202,7 @@ async fn handle_list_peers(swarm: &mut Swarm<BlockchainNetworkBehavior>) {
 }
 
 async fn handle_new_transaction(cmd: &str, swarm: &mut Swarm<BlockchainNetworkBehavior>) {
-    if let Some(rest) = cmd.strip_prefix("tx") {
+    if let Some(rest) = cmd.strip_prefix("tx ") {
         // Transactions are formatted at to|amount
 
         let elements: Vec<&str> = rest.split("|").collect();

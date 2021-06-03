@@ -36,7 +36,9 @@ impl Blockchain {
             .insert(block.hash.to_string(), block.clone());
         self.map.insert(block.hash.to_string(), vec![]);
         self.try_insert(block.clone());
-        println!("A new block added {}, previous block is {}", block.hash, block.previous_hash)
+        // println!("A new block added {}, previous block is {}", block.hash, block.previous_hash);
+        // println!("balance is {:?}", self.get_balances());
+        // self.print_blockchain();
     }
 
     pub fn try_insert(&mut self, block: Block) {
@@ -79,7 +81,6 @@ impl Blockchain {
         let mut latest = 0;
         for (key, val) in self.map.iter() {
             let block = self.block_table.get(key).unwrap();
-            println!("debug {:?}", block.timestamp);
             let temp = block.timestamp.parse::<usize>().unwrap();
             if val.is_empty() && temp > latest{
                 latest = temp;
@@ -88,39 +89,27 @@ impl Blockchain {
         }
         res
     }
-    
+
     pub fn print_blockchain(&self) {
         for (k, _v) in self.map.iter() {
             println!("Block: {}, previous block: {}", k, self.block_table[k].previous_hash)
         }
     }
 
-    pub fn get_balances(&self) -> HashMap<String, usize> { // TODO
+    pub fn get_balances(&self) -> HashMap<String, i64> { // TODO
         // get latest block todo 
-        let reward = Reward {
-            address: "".to_owned(),
-            amount: 0,
-        };
-        let mut block = &Block::new(
-            0,
-            "".to_string(),
-            "timestamp".to_owned(),
-            Transaction::new("".to_owned(), "".to_owned(), "".to_owned(), 0),
-            "".to_owned(),
-            0,
-            reward,
-        );
-        let mut balances: HashMap<String, usize> = HashMap::new();
+        let mut block = self.get_latest_block().unwrap();
+        let mut balances: HashMap<String, i64> = HashMap::new();
         while block.previous_hash != "" {
             //subtract from
             let from_balance = balances.entry(block.tx.from.to_string()).or_insert(0);
-            *from_balance -= block.tx.amount;
+            *from_balance -= block.tx.amount as i64;
             //add to
             let to_balance = balances.entry(block.tx.to.to_string()).or_insert(0);
-            *to_balance += block.tx.amount;
+            *to_balance += block.tx.amount as i64;
             //add reward
             let reward_balance = balances.entry(block.reward.address.to_string()).or_insert(0);
-            *reward_balance += block.reward.amount;
+            *reward_balance += block.reward.amount as i64;
             //go to next block
             block = &self.block_table[&block.previous_hash];
         }

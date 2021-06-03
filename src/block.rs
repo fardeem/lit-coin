@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use sha256::digest;
 
-const DIFFICULTY: &str = "0000";
+const DIFFICULTY: &str = "000";
 const REWARD_AMOUNT: usize = 90;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -68,10 +68,10 @@ pub struct Reward {
     pub amount: usize,
 }
 
-pub fn generate_new_block(transaction: Transaction, previous_block: &Block) -> Block {
+pub fn generate_new_block(transaction: Transaction, previous_block: &Block, peer_id: String) -> Block {
     let index = previous_block.index + 1;
     let reward = Reward {
-        address: "".to_owned(),
+        address: peer_id,
         amount: REWARD_AMOUNT,
     };
     let mut block = Block::new(
@@ -91,10 +91,6 @@ pub fn generate_new_block(transaction: Transaction, previous_block: &Block) -> B
         if is_hash_valid(&hash) {
             println!("{} Found correct hash", hash);
             block.hash = hash;
-            block.reward = Reward {
-                address: "".to_owned(),
-                amount: REWARD_AMOUNT,
-            };
             return block;
         } else {
             println!("{} Incorrect hash", hash);
