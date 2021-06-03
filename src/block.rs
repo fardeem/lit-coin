@@ -12,10 +12,10 @@ pub struct Block {
     pub index: usize,
     pub previous_hash: String,
     timestamp: String,
-    tx: Transaction,
+    pub tx: Transaction,
     pub hash: String,
     nonce: usize,
-    reward: Reward,
+    pub reward: Reward,
 }
 
 impl Block {
